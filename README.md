@@ -1,10 +1,10 @@
 # devops-visualizations
 
-Contains toys to visualize certain typical but very unhealthy patterns that a defops engineer might need to know about
+Contains toys to visualize certain typical but very unhealthy patterns that a devops engineer might need to know about
 
 ## proxy-retry.html
 
-A proxy should never retry. This is why. This is a standalone HTML/JS file. Run in any web browser. It takes three parameters:
+A proxy should never retry. This is why. This is a standalone HTML/JS file. Run in any JS enabled web browser. It takes three parameters:
 
 * tmin - the minimum time at which your backend is likely to respond
 * tmax - the maximum time at which your backend is likely to respond
