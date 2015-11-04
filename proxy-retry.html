@@ -39,6 +39,7 @@
 </head>
 
 <body>
+Note: The following parameters will not work when run via htmlpreview.github.io. Clone or download this page and open it in the browser via file:// URL<P>
 <form>
 tmin&nbsp;<input type=text name=tmin>
 tmax&nbsp;<input type=text name=tmax>
@@ -52,9 +53,9 @@ tret&nbsp;<input type=text name=tret>
 var data = [];
 var dat2 = [];
 var dat3 = [];
-var tmin = parseInt(getParameterByName("tmin",2));
-var tmax = parseInt(getParameterByName("tmax",6));
-var tret = parseInt(getParameterByName("tret",4));
+var tmin = parseFloat(getParameterByName("tmin",2));
+var tmax = parseFloat(getParameterByName("tmax",6));
+var tret = parseFloat(getParameterByName("tret",4));
 
 getData(tmin,tmax,tret); // popuate data 
 
