@@ -10,4 +10,4 @@ A proxy should never retry. This is why. This is a standalone HTML/JS file. Run 
 * tmax - the maximum time at which your backend is likely to respond
 * tret - the time at which the proxy retries 
 
-This sim doesn't actually consider the possibility of a failure in the backend. Instead it is trying to highlight why it should always be the client and not the proxy that handles the failure by demonstrating how bad the performance implications of a retrying proxy are. For additional details see http://artiverse.net/?page_id=6
+This sim doesn't actually consider the possibility of a failure in the backend. Instead it is trying to highlight why it should always be the client and not the proxy that handles the failure by demonstrating how bad the performance implications of a retrying proxy are. For additional details see http://artiverse.net/?p=466
