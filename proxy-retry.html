@@ -39,7 +39,19 @@
 </head>
 
 <body>
-Note: The following parameters will not work when run via htmlpreview.github.io. Clone or download this page and open it in the browser via file:// URL<P>
+A proxy should never retry. <a href=http://artiverse.net/?p=466>This blog post explains why</a>. This sim doesn't actually consider the possibility of a failure in the backend. Instead it is trying to highlight why it should always be the client and not the proxy that handles the failure by demonstrating how bad the performance implications of a retrying proxy are.
+<p>
+
+You can download the source from <a href=https://github.com/frumpel/devops-visualizations>github</a> and open it in the browser via file:// URL or run from your own website
+<P>
+
+Parameter description:<p>
+<ul>
+<li> tmin - the minimum time at which your backend is likely to respond
+<li> tmax - the maximum time at which your backend is likely to respond
+<li> tret - the time at which the proxy retries 
+</ul>
+<p>
 <form>
 tmin&nbsp;<input type=text name=tmin>
 tmax&nbsp;<input type=text name=tmax>
