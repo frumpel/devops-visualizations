@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Normal Plot</title>
+    <meta name="description" content="">
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <style type="text/css">
+    body {
+        font: 10px sans-serif;
+    }
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+    /*.x.axis path {
+        display: none;
+    }*/
+    .lineload {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+    }
+    .lineoverload {
+        fill: none;
+        stroke: #9999FF;
+        stroke-width: 1px;
+    }
+    .linered {
+        fill: none;
+        stroke: red;
+        stroke-width: 1.5px;
+    }
+    .linegreen {
+        fill: none;
+        stroke: seagreen;
+        stroke-width: 1.5px;
+    }
+    .lineretry {
+        fill: none;
+        stroke: #FF9999;
+        stroke-width: 1px;
+    }
+    </style>
+</head>
+
+<body>
+<h1>The cost of retries ...</h1>
+
+<h2>Response characteristics without retries</h2>
+<!-- <a href=http://artiverse.net/?p=466>Still to be written up</a>. -->
+<!-- You can download the source from <a href=https://github.com/frumpel/devops-visualizations>github</a> and open it in the browser via file:// URL or run from your own website
+ -->
+Let's take a simplistic model where the response time for a query is perfectly linear,
+independent of the total load on the system. If we hit the system with more requests than
+it can handle it will keep processing requests at that same speed but the responses
+will be ever more delayed because the requests are stuck in a request queue.
+
+In the first graph below we show what happens when the load exceeds the capacity
+of the system. 
+
+<P>
+Legend:
+<p>
+<ul>
+<li> blue - the load (requests/s) thrown at the system. The horizontal line is the maximum number of requests per second the system can handle
+<li> green - the resulting queue length (requests)
+<li> red - the average response time for each request. The horizontal line is where the client times out and retries
+</ul>
+
+
+Parameter description:<p>
+<ul>
+<li> speed - how many requests/s the backend can handle
+<li> overload  - factor by which the maximum load exceeds processing speed
+</ul>
+<p>
+
+<p><form>
+speed&nbsp;<input type=text name=speed>
+overload&nbsp;<input type=text name=overload>
+<input type=submit>
+</form>
+</body>
+
+<script type="text/javascript">
+//setting up empty data array
+var data_load = [];
+var data_lque = [];
+var data_tres = [];
+var data_tret = [];
+var data_smax = [];
+var speed    = parseFloat(getParameterByName("speed",1000));
+var overload = parseFloat(getParameterByName("overload", 1.07));
+
+getData(speed,overload); // popuate data 
+
+// line chart based on http://bl.ocks.org/mbostock/3883245
+var margin = {
+        top: 20,
+        right: 20,
+        bottom: 30,
+        left: 50
+    },
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+var x = d3.scale.linear()
+    .range([0, width]);
+
+var y = d3.scale.log()
+    .range([height, 0]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left");
+
+var line = d3.svg.line()
+    .x(function(d) {
+        return x(d.t);
+    })
+    .y(function(d) {
+        return y(d.y);
+    });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+x.domain(
+    [
+      Math.min(
+        d3.min(data_load,function(d) { return d.t; }),
+        d3.min(data_lque,function(d) { return d.t; }),
+        d3.min(data_tres,function(d) { return d.t; }),
+        d3.min(data_tret,function(d) { return d.t; }),
+        d3.min(data_smax,function(d) { return d.t; })
+        ),
+      Math.max(
+        d3.max(data_load,function(d) { return d.t; }),
+        d3.max(data_lque,function(d) { return d.t; }),
+        d3.max(data_tres,function(d) { return d.t; }),
+        d3.max(data_tret,function(d) { return d.t; }),
+        d3.max(data_smax,function(d) { return d.t; })
+        )
+    ]
+);
+
+y.domain(
+    [
+      1,
+      Math.max(
+        d3.max(data_load,function(d) { return d.y; }),
+        d3.max(data_lque,function(d) { return d.y; }),
+        d3.max(data_tres,function(d) { return d.y; }),
+        d3.max(data_tret,function(d) { return d.y; }),
+        d3.max(data_smax,function(d) { return d.y; })
+        )
+    ]
+).nice();
+
+svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xAxis);
+
+svg.append("g")
+    .attr("class", "y axis")
+    .call(yAxis);
+
+svg.append("path")
+    .datum(data_load)
+    .attr("class", "lineload")
+    .attr("d", line);
+
+svg.append("path")
+    .datum(data_lque)
+    .attr("class", "linegreen")
+    .attr("d", line);
+
+svg.append("path")
+    .datum(data_tres)
+    .attr("class", "linered")
+    .attr("d", line);
+
+svg.append("path")
+    .datum(data_tret)
+    .attr("class", "lineretry")
+    .attr("d", line);
+
+svg.append("path")
+    .datum(data_smax)
+    .attr("class", "lineoverload")
+    .attr("d", line);
+
+function getData(speed,overload) {
+    tmin = 0
+    tmax = 3600
+    queue_length = 0
+
+    for (var t = tmin; t < tmax; t++) {
+        load = speed * (Math.sin(-Math.PI/2 + 2*Math.PI*t/tmax)+1) * overload/2
+        queue_length  += load - speed
+        queue_length = Math.max(0,queue_length)
+        response_time =  queue_length / speed;
+        retry_timeout = 15
+
+        pt = {
+            "t": t,
+            "y": load+1
+        }
+        data_load.push(pt)
+
+        pt = {
+            "t": t,
+            "y": queue_length+1
+        }
+        data_lque.push(pt)
+
+        pt = {
+            "t": t,
+            "y": response_time+1
+        }
+        data_tres.push(pt)
+
+        pt = {
+            "t": t,
+            "y": retry_timeout
+        }
+        data_tret.push(pt)
+
+        pt = {
+            "t": t,
+            "y": speed
+        }
+        data_smax.push(pt)
+
+    };
+};
+
+// http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
+function getParameterByName(name,defval) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results === null ? defval : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+</script>
+
+</html>
