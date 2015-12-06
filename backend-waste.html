@@ -7,6 +7,8 @@
     <title>Normal Plot</title>
     <meta name="description" content="">
     <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="request-queue.js"></script>
+
     <style type="text/css">
     body {
         font: 10px sans-serif;
@@ -33,6 +35,16 @@
     .linered {
         fill: none;
         stroke: red;
+        stroke-width: 1.5px;
+    }
+    .lineredmin {
+        fill: none;
+        stroke: #cccc00;
+        stroke-width: 1.5px;
+    }
+    .lineredmax {
+        fill: none;
+        stroke: #cc00cc;
         stroke-width: 1.5px;
     }
     .linegreen {
@@ -87,11 +99,15 @@ overload&nbsp;<input type=text name=overload>
 </form>
 </body>
 
+
 <script type="text/javascript">
 //setting up empty data array
+var queue = new Queue();
 var data_load = [];
 var data_lque = [];
 var data_tres = [];
+var data_trmn = [];
+var data_trmx = [];
 var data_tret = [];
 var data_smax = [];
 var speed    = parseFloat(getParameterByName("speed",1000));
@@ -143,6 +159,8 @@ x.domain(
         d3.min(data_load,function(d) { return d.t; }),
         d3.min(data_lque,function(d) { return d.t; }),
         d3.min(data_tres,function(d) { return d.t; }),
+        d3.min(data_trmn,function(d) { return d.t; }),
+        d3.min(data_trmx,function(d) { return d.t; }),
         d3.min(data_tret,function(d) { return d.t; }),
         d3.min(data_smax,function(d) { return d.t; })
         ),
@@ -150,6 +168,8 @@ x.domain(
         d3.max(data_load,function(d) { return d.t; }),
         d3.max(data_lque,function(d) { return d.t; }),
         d3.max(data_tres,function(d) { return d.t; }),
+        d3.max(data_trmn,function(d) { return d.t; }),
+        d3.max(data_trmx,function(d) { return d.t; }),
         d3.max(data_tret,function(d) { return d.t; }),
         d3.max(data_smax,function(d) { return d.t; })
         )
@@ -163,6 +183,8 @@ y.domain(
         d3.max(data_load,function(d) { return d.y; }),
         d3.max(data_lque,function(d) { return d.y; }),
         d3.max(data_tres,function(d) { return d.y; }),
+        d3.max(data_trmn,function(d) { return d.y; }),
+        d3.max(data_trmx,function(d) { return d.y; }),
         d3.max(data_tret,function(d) { return d.y; }),
         d3.max(data_smax,function(d) { return d.y; })
         )
@@ -194,6 +216,16 @@ svg.append("path")
     .attr("d", line);
 
 svg.append("path")
+    .datum(data_trmn)
+    .attr("class", "lineredmin")
+    .attr("d", line);
+
+svg.append("path")
+    .datum(data_trmx)
+    .attr("class", "lineredmax")
+    .attr("d", line);
+
+svg.append("path")
     .datum(data_tret)
     .attr("class", "lineretry")
     .attr("d", line);
@@ -203,17 +235,49 @@ svg.append("path")
     .attr("class", "lineoverload")
     .attr("d", line);
 
+function addRetries(queueRef,tnow,tretry) {
+    var maxlen = queueRef.getLength();
+    var ii=0;
+
+    console.log("retries " + maxlen)
+    for (ii=0; ii<maxlen; ii++) {
+        if (queueRef.peekAt(ii).v == tnow - tretry) {
+            queueRef.enqueue({v:tnow,i:"retry"});
+            console.log("Added retry call");
+        }
+    }
+}
+
 function getData(speed,overload) {
-    tmin = 0
-    tmax = 3600
-    queue_length = 0
+    var tmin = 0;
+    var tmax = 3600;
+    var queue_length = 0;
+    var response_time = 0;
+    var retry_timeout = 15;
+    var load = 0;
+    var deque = [];
+    var pt = {};
 
     for (var t = tmin; t < tmax; t++) {
-        load = speed * (Math.sin(-Math.PI/2 + 2*Math.PI*t/tmax)+1) * overload/2
-        queue_length  += load - speed
-        queue_length = Math.max(0,queue_length)
+        // synthetic load - should be replaced with a function
+        load = Math.round(speed * (Math.sin(-Math.PI/2 + 2*Math.PI*t/tmax)+1) * overload/2);
+
+        // run queue workers
+        queue.enqueuearray(Array.apply(null, Array(load)).map(function(){return {v:t,i:"normal"} }));
+        deque = queue.dequeuearray(speed);
+        queue_length = queue.getLength();
         response_time =  queue_length / speed;
-        retry_timeout = 15
+        if (deque.length > 0) {
+            response_time_min = t - deque.slice(-1)[0].v;
+            response_time_max = t - deque.slice( 0)[0].v;
+        } else {
+            response_time_min = 0;
+            response_time_max = 0;
+        }
+        // console.log(response_time_min + ", " + response_time_max);
+
+        // reload with retries
+        //addRetries(queue,t,retry_timeout);
 
         pt = {
             "t": t,
@@ -235,6 +299,18 @@ function getData(speed,overload) {
 
         pt = {
             "t": t,
+            "y": response_time_max+1
+        }
+        data_trmx.push(pt)
+
+        pt = {
+            "t": t,
+            "y": response_time_min+1
+        }
+        data_trmn.push(pt)
+
+        pt = {
+            "t": t,
             "y": retry_timeout
         }
         data_tret.push(pt)
@@ -248,6 +324,7 @@ function getData(speed,overload) {
     };
 };
 
+// ----------------------------------------------------------------------------
 // http://stackoverflow.com/questions/901115/how-can-i-get-query-string-values-in-javascript
 function getParameterByName(name,defval) {
     name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
@@ -255,6 +332,8 @@ function getParameterByName(name,defval) {
         results = regex.exec(location.search);
     return results === null ? defval : decodeURIComponent(results[1].replace(/\+/g, " "));
 }
+
+
 </script>
 
 </html>
