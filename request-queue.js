@@ -61,8 +61,10 @@ function RequestQueue(){
     if (queue.length-offset > 0) {
       last_entry = queue[queue.length-1];
       if (last_entry.t == enqueue_time) {
+        // console.log("Enqueue[" + iteration + "]: match last " + last_entry.t + " vs " + enqueue_time);
         push_index = queue.length-1;
       } else {
+        // console.log("Enqueue[" + iteration + "]: add   last " + last_entry.t + " vs need " + enqueue_time);
         last_entry = {t:enqueue_time,d:[]};
         push_index=queue.length;  
       }
@@ -141,7 +143,10 @@ function RequestQueue(){
    */
   this.getLengthRequest = function(index) {
     var ii;
-    var count = 0;
+    // var count = Array.prototype.map.call(queue[index+offset].d.length,function() { return 0; });
+    // var count = Array.apply(null, Array(queue[index+offset].d.length)).map(function() { return 0 });
+    var count = [];
+    var tc = 0;
 
     // Check to make sure we have an appropriate element
     if ((index < 0) || (queue.length == 0) || (queue.length < index + offset)) {
@@ -150,17 +155,28 @@ function RequestQueue(){
 
     // sum over total duration of all elements
     for (ii=0; ii<queue[index+offset].d.length; ii++) {
-      count += queue[index+offset].d[ii] | 0;
+      count[ii] = queue[index+offset].d[ii] | 0;
     }
+
+    for (ii=0; ii<queue[index+offset].d.length; ii++) {
+      tc+=count[ii];
+    }
+    count.unshift(tc);
 
     return count;
   }
 
   this.getLengthRequests = function() {
-    var ii;
-    var ql = 0;
+    var ii = 0;
+    var jj = 0;
+    var ql = [0];
+    var rs = [0];
+
     for (ii=0; ii<this.getLengthQueue(); ii++) {
-      ql += this.getLengthRequest(ii);
+      rs = this.getLengthRequest(ii);
+      for (jj=0; jj<rs.length; jj++) {
+        ql[jj] = (ql[jj] | 0) + (rs[jj] | 0);
+      }
     }
     return ql;
   }
@@ -216,7 +232,7 @@ function RequestQueue(){
 
     // iterate over entries
     for (ii=0; ii<queue.length-offset; ii++) {
-      tc = this.getLengthRequest(ii);
+      tc = this.getLengthRequest(ii)[0];
       if (count + tc < numentries) {
         ec++; 
         count += tc; 
@@ -240,6 +256,22 @@ function RequestQueue(){
 
     // return the dequeued item
     return { tq:list, count:count };    
+  }
+
+  /* Does a search to find all requests - might have to become binary search
+   */
+  this.findAtTimeRequests = function(time) {
+    var ii=0;
+    var list = [];
+    // Make sure we have a queue to work on
+    if (queue.length <= offset) return [];
+
+    for (var ii=offset; ii<queue.length; ii++) {
+      if (queue[ii].t == time) {
+        list.push(queue[ii]);
+      }
+    }
+    return list;
   }
 
   /* Returns the item at the front of the queue (without dequeuing it). If the

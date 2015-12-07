@@ -52,6 +52,11 @@
         stroke: seagreen;
         stroke-width: 1.5px;
     }
+    .linegreenthin {
+        fill: none;
+        stroke: seagreen;
+        stroke-width: 1px;
+    }
     .lineretry {
         fill: none;
         stroke: #FF9999;
@@ -105,6 +110,8 @@ overload&nbsp;<input type=text name=overload>
 var queue = new RequestQueue();
 var data_load = [];
 var data_lque = [];
+var data_lqu1 = [];
+var data_lqu2 = [];
 var data_tres = [];
 var data_trmn = [];
 var data_trmx = [];
@@ -158,6 +165,8 @@ x.domain(
       Math.min(
         d3.min(data_load,function(d) { return d.t; }),
         d3.min(data_lque,function(d) { return d.t; }),
+        d3.min(data_lqu1,function(d) { return d.t; }),
+        d3.min(data_lqu2,function(d) { return d.t; }),
         d3.min(data_tres,function(d) { return d.t; }),
         d3.min(data_trmn,function(d) { return d.t; }),
         d3.min(data_trmx,function(d) { return d.t; }),
@@ -167,6 +176,8 @@ x.domain(
       Math.max(
         d3.max(data_load,function(d) { return d.t; }),
         d3.max(data_lque,function(d) { return d.t; }),
+        d3.max(data_lqu1,function(d) { return d.t; }),
+        d3.max(data_lqu2,function(d) { return d.t; }),
         d3.max(data_tres,function(d) { return d.t; }),
         d3.max(data_trmn,function(d) { return d.t; }),
         d3.max(data_trmx,function(d) { return d.t; }),
@@ -182,6 +193,8 @@ y.domain(
       Math.max(
         d3.max(data_load,function(d) { return d.y; }),
         d3.max(data_lque,function(d) { return d.y; }),
+        d3.max(data_lqu1,function(d) { return d.y; }),
+        d3.max(data_lqu2,function(d) { return d.y; }),
         d3.max(data_tres,function(d) { return d.y; }),
         d3.max(data_trmn,function(d) { return d.y; }),
         d3.max(data_trmx,function(d) { return d.y; }),
@@ -211,6 +224,16 @@ svg.append("path")
     .attr("d", line);
 
 svg.append("path")
+    .datum(data_lqu1)
+    .attr("class", "linegreenthin")
+    .attr("d", line);
+
+svg.append("path")
+    .datum(data_lqu2)
+    .attr("class", "linegreenthin")
+    .attr("d", line);
+
+svg.append("path")
     .datum(data_tres)
     .attr("class", "linered")
     .attr("d", line);
@@ -235,16 +258,19 @@ svg.append("path")
     .attr("class", "lineoverload")
     .attr("d", line);
 
-function addRetries(queueRef,tnow,tretry) {
-    var maxlen = queueRef.getLength();
-    var ii=0;
+function addRetries(queueRef,tnow,tretry,nretry) {
+    var list = queueRef.findAtTimeRequests(tnow-tretry);
 
-    console.log("retries " + maxlen)
-    for (ii=0; ii<maxlen; ii++) {
-        if (queueRef.peekAt(ii).v == tnow - tretry) {
-            queueRef.enqueue({v:tnow,i:"retry"});
-            console.log("Added retry call");
-        }
+    if (list.length > 1) console.log("add retries: " + list.length);
+
+    // This doesn't work I wionder if somehow list and queue are shallow copies
+    // and we are iterating the wrong way round ... tried reverse and it doesn't
+    // work ... so still searching
+    for (var ii=0; ii<list.length; ii++) {
+        // for (var jj=0; jj<nretry; jj++) {
+        //     queueRef.enqueueRequests(tnow,jj+1,list[ii].d[jj] | 0)
+        // }
+        queueRef.enqueueRequests(tnow,1,list[ii].d[0] | 0);
     }
 }
 
@@ -265,9 +291,8 @@ function getData(speed,overload) {
         // run queue workers
         queue.enqueueRequests(t,0,load);
         deque = queue.dequeueRequests(speed);
-        console.log(deque);
-        queue_length = queue.getLengthRequests();
-        response_time =  queue_length / speed;
+        queue_lengths = queue.getLengthRequests();
+        response_time =  queue_lengths[0] / speed;
         if (deque.tq.length > 0) {
             response_time_min = t - deque.tq.slice(-1)[0].t;
             response_time_max = t - deque.tq.slice( 0)[0].t;
@@ -278,7 +303,8 @@ function getData(speed,overload) {
         // console.log(response_time_min + ", " + response_time_max);
 
         // reload with retries
-        //addRetries(queue,t,retry_timeout);
+        // addRetries(queue,t,retry_timeout);
+        addRetries(queue,t,retry_timeout,1);
 
         pt = {
             "t": t,
@@ -288,9 +314,21 @@ function getData(speed,overload) {
 
         pt = {
             "t": t,
-            "y": queue_length+1
+            "y": queue_lengths[0]+1
         }
         data_lque.push(pt)
+
+        pt = {
+            "t": t,
+            "y": (queue_lengths[1] | 0)+1
+        }
+        data_lqu1.push(pt)
+
+        pt = {
+            "t": t,
+            "y": (queue_lengths[2] | 0)+1
+        }
+        data_lqu2.push(pt)
 
         pt = {
             "t": t,
