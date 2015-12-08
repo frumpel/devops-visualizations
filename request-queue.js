@@ -203,7 +203,7 @@ function RequestQueue(){
         queue[index+offset].d[ii]=0;
         count += tc;
       } else {
-        tq.d[ii]                  += numentries - count;
+        tq.d[ii]                   = (tq.d[ii] | 0) + numentries - count;
         queue[index+offset].d[ii] -= numentries - count;
         count                      = numentries;
         break;
@@ -233,9 +233,11 @@ function RequestQueue(){
     // iterate over entries
     for (ii=0; ii<queue.length-offset; ii++) {
       tc = this.getLengthRequest(ii)[0];
-      if (count + tc < numentries) {
+      if (count + tc <= numentries) { 
         ec++; 
         count += tc; 
+        // minor ugliness to delete empty elements off queue
+        if (count == numentries) break;
       } else {
         res = this.elementSpliceRequest(ii,numentries-count);
         count += res.count;

@@ -267,10 +267,9 @@ function addRetries(queueRef,tnow,tretry,nretry) {
     // and we are iterating the wrong way round ... tried reverse and it doesn't
     // work ... so still searching
     for (var ii=0; ii<list.length; ii++) {
-        // for (var jj=0; jj<nretry; jj++) {
-        //     queueRef.enqueueRequests(tnow,jj+1,list[ii].d[jj] | 0)
-        // }
-        queueRef.enqueueRequests(tnow,1,list[ii].d[0] | 0);
+        for (var jj=0; jj<nretry; jj++) {
+            queueRef.enqueueRequests(tnow,jj+1,list[ii].d[jj] | 0)
+        }
     }
 }
 
