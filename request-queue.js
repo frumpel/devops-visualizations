@@ -45,7 +45,7 @@ function RequestQueue(){
    * item - the item to enqueue
    */
   this.enqueueQueue = function(item){
-    queue.push(item);
+    queue.push(JSON.parse(JSON.stringify(item)));
   }
 
   /* Enqueues the specified item with content semantics. The parameter is:
@@ -59,7 +59,7 @@ function RequestQueue(){
     var last_entry;
 
     if (queue.length-offset > 0) {
-      last_entry = queue[queue.length-1];
+      last_entry = JSON.parse(JSON.stringify(queue[queue.length-1]));
       if (last_entry.t == enqueue_time) {
         // console.log("Enqueue[" + iteration + "]: match last " + last_entry.t + " vs " + enqueue_time);
         push_index = queue.length-1;
@@ -111,7 +111,7 @@ function RequestQueue(){
     }
 
     // return the dequeued item
-    return item;
+    return JSON.parse(JSON.stringify(item));
 
   }
 
@@ -134,12 +134,16 @@ function RequestQueue(){
     }
 
     // return the dequeued item
-    return list;
+    return JSON.parse(JSON.stringify(list));
 
   }
 
-  /* Introspects a singe request element and counts all contained requests. 
-   * This will sum over first and subsequent interations
+  /* Introspects a single request element and counts all contained requests. 
+   * This will sum over first and subsequent iterations and return an array
+   * of lengths:
+   * 0: sum of all iterations
+   * 1: length of initial request queue
+   * 2: length of first retry queue ... 
    */
   this.getLengthRequest = function(index) {
     var ii;
@@ -150,7 +154,7 @@ function RequestQueue(){
 
     // Check to make sure we have an appropriate element
     if ((index < 0) || (queue.length == 0) || (queue.length < index + offset)) {
-      return 0;
+      return [0];
     }
 
     // sum over total duration of all elements
@@ -158,6 +162,7 @@ function RequestQueue(){
       count[ii] = queue[index+offset].d[ii] | 0;
     }
 
+    // sum of sums in [0] element
     for (ii=0; ii<queue[index+offset].d.length; ii++) {
       tc+=count[ii];
     }
@@ -166,6 +171,13 @@ function RequestQueue(){
     return count;
   }
 
+  /* Introspects the whole list of request elements and counts all contained requests. 
+   * This will sum over first and subsequent iterations and return an array
+   * of lengths:
+   * 0: sum of all iterations
+   * 1: length of initial request queue
+   * 2: length of first retry queue ... 
+   */
   this.getLengthRequests = function() {
     var ii = 0;
     var jj = 0;
@@ -177,6 +189,7 @@ function RequestQueue(){
       for (jj=0; jj<rs.length; jj++) {
         ql[jj] = (ql[jj] | 0) + (rs[jj] | 0);
       }
+      console.log(ql + " - " + rs)
     }
     return ql;
   }
@@ -195,6 +208,9 @@ function RequestQueue(){
       return tq;
     }
 
+    // there should be another sanity check here to make sure that the request
+    // actually contains enough entries to be split ...
+
     tq.t = queue[index+offset].t;
     for (ii=0; ii<queue[index+offset].d.length; ii++) {
       tc = queue[index+offset].d[ii] | 0;
@@ -209,7 +225,7 @@ function RequestQueue(){
         break;
       }
     }
-    return { tq:tq, count:count };
+    return JSON.parse(JSON.stringify({ tq:tq, count:count }));
 
   }
 
@@ -257,7 +273,7 @@ function RequestQueue(){
     }
 
     // return the dequeued item
-    return { tq:list, count:count };    
+    return JSON.parse(JSON.stringify({ tq:list, count:count }));    
   }
 
   /* Does a search to find all requests - might have to become binary search
@@ -273,7 +289,7 @@ function RequestQueue(){
         list.push(queue[ii]);
       }
     }
-    return list;
+    return JSON.parse(JSON.stringify(list));
   }
 
   /* Returns the item at the front of the queue (without dequeuing it). If the
