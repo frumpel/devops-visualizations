@@ -189,7 +189,7 @@ function RequestQueue(){
       for (jj=0; jj<rs.length; jj++) {
         ql[jj] = (ql[jj] | 0) + (rs[jj] | 0);
       }
-      console.log(ql + " - " + rs)
+      // console.log(ql + " - " + rs)
     }
     return ql;
   }

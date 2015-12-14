@@ -27,48 +27,87 @@
         stroke: steelblue;
         stroke-width: 1.5px;
     }
-    .lineoverload {
+
+    .lineql0bas {
         fill: none;
-        stroke: #9999FF;
-        stroke-width: 1px;
-    }
-    .linered {
-        fill: none;
-        stroke: red;
+        stroke: seagreen;
         stroke-width: 1.5px;
     }
-    .lineredmin {
+
+    .lineql0ret {
+        fill: none;
+        stroke: #ff0000;
+        stroke-width: 1.5px;
+    }
+    .lineql1ret {
+        fill: none;
+        stroke: #ff3333;
+        stroke-width: 1px;
+    }
+    .lineql2ret {
+        fill: none;
+        stroke: #ff7777;
+        stroke-width: 1px;
+    }
+
+    .linetavgbas {
         fill: none;
         stroke: #cccc00;
-        stroke-width: 1.5px;
-    }
-    .lineredmax {
-        fill: none;
-        stroke: #cc00cc;
-        stroke-width: 1.5px;
-    }
-    .linegreen {
-        fill: none;
-        stroke: seagreen;
-        stroke-width: 1.5px;
-    }
-    .linegreenthin {
-        fill: none;
-        stroke: seagreen;
         stroke-width: 1px;
     }
-    .lineretry {
+    .linetavgbasorig {
         fill: none;
-        stroke: #FF9999;
+        stroke: #cccc00;
+        stroke-width: 1px;
+    }
+
+    .linetavgret {
+        fill: none;
+        stroke: #FF6600;
+        stroke-width: 1px;
+    }
+    .linetminret {
+        fill: none;
+        stroke: #cc00cc;
+        stroke-width: 1px;
+    }
+    .linetmaxret {
+        fill: none;
+        stroke: #cc00cc;
+        stroke-width: 1px;
+    }
+
+    .linereftimeout {
+        fill: none;
+        stroke: #cccccc;
+        stroke-width: 1px;
+    }
+    .linerefspeed {
+        fill: none;
+        stroke: steelblue;
         stroke-width: 1px;
     }
     </style>
 </head>
 
 <body>
+<p>
+Parameter description:<p>
+<ul>
+<li> speed (default 1000) - how many requests/s the backend can handle. This has no real effect but you may be able to make the simulation to run a little faster by picking a lower number 
+<li> overload (default 1.07, also try 1.05) - factor by which the maximum load exceeds processing speed
+</ul>
+<p>
+
+<form>
+speed&nbsp;<input type=text name=speed >
+overload&nbsp;<input type=text name=overload >
+<input type=submit>
+</form>
+<p>
+
 <h1>The cost of retries ...</h1>
 
-<h2>Response characteristics without retries</h2>
 <!-- <a href=http://artiverse.net/?p=466>Still to be written up</a>. -->
 <!-- You can download the source from <a href=https://github.com/frumpel/devops-visualizations>github</a> and open it in the browser via file:// URL or run from your own website
  -->
@@ -77,46 +116,64 @@ independent of the total load on the system. If we hit the system with more requ
 it can handle it will keep processing requests at that same speed but the responses
 will be ever more delayed because the requests are stuck in a request queue.
 
-In the first graph below we show what happens when the load exceeds the capacity
-of the system. 
 
 <P>
 Legend:
 <p>
 <ul>
 <li> blue - the load (requests/s) thrown at the system. The horizontal line is the maximum number of requests per second the system can handle
-<li> green - the resulting queue length (requests)
-<li> red - the average response time for each request. The horizontal line is where the client times out and retries
-</ul>
-
-
-Parameter description:<p>
-<ul>
-<li> speed - how many requests/s the backend can handle
-<li> overload  - factor by which the maximum load exceeds processing speed
+<li> dark green - the resulting queue length (requests)
+<li> light green - the average response time for each request when there are no retires. The grey horizontal line is where the client times out and retries
+<li> red - the queue length if we allow a single retry. The bold line is the total queue length (original requests plus retries). The thin lines are the individual contributions of original and retry requests (see below)
+<li> orange - the average response time for each request in the retry case 
 </ul>
 <p>
 
-<p><form>
-speed&nbsp;<input type=text name=speed>
-overload&nbsp;<input type=text name=overload>
-<input type=submit>
-</form>
+<h2>No retries</h2>
+<p>
+In the no retry case, as we slowly load up the system the total number of requests in the queue eventually exceeds the speed with which they can be processed (about 1500s with default settings). At this point both the queue length and the response time start increasing. Eventually the response time exceeds the timeout on the client (about 1800s with default settings). From the client's perspective at this point all requests start failing. Note that this situation perists well past the point where the load has dropped below what the system can handled (about 2200s with default settings) because there are still so many - effectively dead - requests stuck in the queue. Only when the queue size drops significantly does the response time drop back below the 15s timeout (about 2350s with default settings) and requests start succeeding again. 
+<p>
+
+All this is bad, but it is expected. One could argue that in this model there is only a problem if we are running very close to the limit of the ability of the system to handle load and that at that point some failures are expected.
+<p>
+
+<h2>With retries</h2>
+<p>
+
+Of course when the request fails it is likely the client will retry. In the simplest case we add a single retry. Everything remain the same until the first timeouts. At this point the number of requests on the system increases significantly because for every request more than 15s old a new request is added to the queue. This can be observed in the steep increase of the overall length of the request queue (bold red line). At the same time the average response time for requests also increases (orange line) because there are now even more (still dead) requests in the queue that need to be processed - and dropped by the client) before recovery can happen. 
+<p>
+
+The thin red lines show the individual contributions of the original requests and the retries. As expected with a single retry these each contribute about half of the overall queued requests. If you look very carfully you will see that the contribution of the original requests initially almost follows the no-retry case but then with the increase of the retries suddenly increases to about the same level as the retries. This may initially seem counterintuitive but can easily be understood if you consider that original requests and retry requests are indistinguishable in the queue and the back end will process them as they come in. In other words, for every retry the back end will not process a first request and as a result more and more original requests will remain in the queue for longer. 
+
+
+
+
+
 </body>
 
 
 <script type="text/javascript">
-//setting up empty data array
-var queue = new RequestQueue();
-var data_load = [];
-var data_lque = [];
-var data_lqu1 = [];
-var data_lqu2 = [];
-var data_tres = [];
-var data_trmn = [];
-var data_trmx = [];
-var data_tret = [];
-var data_smax = [];
+
+// queues with and without retries
+var queue_bas = new RequestQueue();
+var queue_ret = new RequestQueue();
+
+// graph data
+var data_desc = [
+    // description,                     css tag for line
+    [ "synthetic load",                 "lineload" ],
+    [ "no retries: queue length",       "lineql0bas" ],
+    [ "retries: queue length",          "lineql0ret" ],
+    [ "retries: queue length original", "lineql1ret" ],
+    [ "retries: queue length retry 1",  "lineql2ret" ],
+    [ "no retries: response time avg",  "linetavgbas" ],
+    [ "retries: response time avg",     "linetavgret" ],
+    [ "retries: response time min",     "linetminret" ],
+    [ "retries: response time max",     "linetmaxret" ],
+    [ "reference: retry timeout",       "linereftimeout" ],
+    [ "reference: speed",               "linerefspeed" ]
+]
+var data = []; for (ii=0; ii<data_desc.length; ii++) { data[ii] = []; };
 var speed    = parseFloat(getParameterByName("speed",1000));
 var overload = parseFloat(getParameterByName("overload", 1.07));
 
@@ -160,49 +217,26 @@ var svg = d3.select("body").append("svg")
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-x.domain(
-    [
-      Math.min(
-        d3.min(data_load,function(d) { return d.t; }),
-        d3.min(data_lque,function(d) { return d.t; }),
-        d3.min(data_lqu1,function(d) { return d.t; }),
-        d3.min(data_lqu2,function(d) { return d.t; }),
-        d3.min(data_tres,function(d) { return d.t; }),
-        d3.min(data_trmn,function(d) { return d.t; }),
-        d3.min(data_trmx,function(d) { return d.t; }),
-        d3.min(data_tret,function(d) { return d.t; }),
-        d3.min(data_smax,function(d) { return d.t; })
-        ),
-      Math.max(
-        d3.max(data_load,function(d) { return d.t; }),
-        d3.max(data_lque,function(d) { return d.t; }),
-        d3.max(data_lqu1,function(d) { return d.t; }),
-        d3.max(data_lqu2,function(d) { return d.t; }),
-        d3.max(data_tres,function(d) { return d.t; }),
-        d3.max(data_trmn,function(d) { return d.t; }),
-        d3.max(data_trmx,function(d) { return d.t; }),
-        d3.max(data_tret,function(d) { return d.t; }),
-        d3.max(data_smax,function(d) { return d.t; })
-        )
-    ]
-);
+function get_data_minmax_array(data, fn_extract) {
+    var ii;
+    var min;
+    var max;
 
-y.domain(
-    [
-      1,
-      Math.max(
-        d3.max(data_load,function(d) { return d.y; }),
-        d3.max(data_lque,function(d) { return d.y; }),
-        d3.max(data_lqu1,function(d) { return d.y; }),
-        d3.max(data_lqu2,function(d) { return d.y; }),
-        d3.max(data_tres,function(d) { return d.y; }),
-        d3.max(data_trmn,function(d) { return d.y; }),
-        d3.max(data_trmx,function(d) { return d.y; }),
-        d3.max(data_tret,function(d) { return d.y; }),
-        d3.max(data_smax,function(d) { return d.y; })
-        )
-    ]
-).nice();
+    // exit if we are given an empty array
+    if (data.length <1) return [0,0];
+
+    min = d3.min(data[0], fn_extract);
+    max = d3.max(data[0], fn_extract);
+    for (ii=1; ii<data.length; ii++) {
+        min = Math.min(min, d3.min(data[ii], fn_extract) );
+        max = Math.max(max, d3.max(data[ii], fn_extract) );
+    }
+    return [min,max];
+}
+
+
+x.domain(get_data_minmax_array(data, function(d) { return d.t; })).nice();
+y.domain(get_data_minmax_array(data, function(d) { return d.y; })).nice();
 
 svg.append("g")
     .attr("class", "x axis")
@@ -213,57 +247,24 @@ svg.append("g")
     .attr("class", "y axis")
     .call(yAxis);
 
-svg.append("path")
-    .datum(data_load)
-    .attr("class", "lineload")
-    .attr("d", line);
+for (ii=0; ii<data_desc.length; ii++) { 
+    // filter out min/max - they don't really provide value
+    if (ii==7 || ii==8)
+        continue;
 
-svg.append("path")
-    .datum(data_lque)
-    .attr("class", "linegreen")
-    .attr("d", line);
+    svg.append("path")
+        .datum(data[ii])
+        .attr("class", data_desc[ii][1])
+        .attr("d", line);
+}
 
-svg.append("path")
-    .datum(data_lqu1)
-    .attr("class", "linegreenthin")
-    .attr("d", line);
-
-svg.append("path")
-    .datum(data_lqu2)
-    .attr("class", "linegreenthin")
-    .attr("d", line);
-
-svg.append("path")
-    .datum(data_tres)
-    .attr("class", "linered")
-    .attr("d", line);
-
-svg.append("path")
-    .datum(data_trmn)
-    .attr("class", "lineredmin")
-    .attr("d", line);
-
-svg.append("path")
-    .datum(data_trmx)
-    .attr("class", "lineredmax")
-    .attr("d", line);
-
-svg.append("path")
-    .datum(data_tret)
-    .attr("class", "lineretry")
-    .attr("d", line);
-
-svg.append("path")
-    .datum(data_smax)
-    .attr("class", "lineoverload")
-    .attr("d", line);
 
 function addRetries(queueRef,tnow,tretry,nretry) {
     var list = queueRef.findAtTimeRequests(tnow-tretry);
     var ii;
     var jj;
 
-    if (list.length > 1) console.log("add retries: " + list.length);
+    // if (list.length > 1) console.log("add retries: " + list.length);
 
     // This doesn't work I wionder if somehow list and queue are shallow copies
     // and we are iterating the wrong way round ... tried reverse and it doesn't
@@ -278,88 +279,84 @@ function addRetries(queueRef,tnow,tretry,nretry) {
 function getData(speed,overload) {
     var tmin = 0;
     var tmax = 3600;
-    var queue_length = 0;
-    var response_time = 0;
+    var qlens_bas = 0;
+    var qlens_ret = 0;
+    // var response_time = 0;
     var retry_timeout = 15;
     var load = 0;
-    var deque = [];
+    var deque_bas = [];
+    var deque_ret = [];
     var pt = {};
+    var ii = 0;
+    var jj = 0;
+    var tmp1 = 0;
+    var tmp2 = 0;
+    var response_time_min_bas = 0;
+    var response_time_avg_bas = 0;
+    var response_time_max_bas = 0;
+    var response_time_min_ret = 0;
+    var response_time_avg_ret = 0;
+    var response_time_max_ret = 0;
 
     for (var t = tmin; t < tmax; t++) {
         // synthetic load - should be replaced with a function
         load = Math.round(speed * (Math.sin(-Math.PI/2 + 2*Math.PI*t/tmax)+1) * overload/2);
 
-        // run queue workers
-        queue.enqueueRequests(t,0,load);
-        deque = queue.dequeueRequests(speed);
-        queue_lengths = queue.getLengthRequests();
-        response_time =  queue_lengths[0] / speed;
-        if (deque.tq.length > 0) {
-            response_time_min = t - deque.tq.slice(-1)[0].t;
-            response_time_max = t - deque.tq.slice( 0)[0].t;
+        // run queue workers ... run retry and non-retry queues side by side
+        queue_bas.enqueueRequests(t,0,load);
+        queue_ret.enqueueRequests(t,0,load);
+
+        deque_bas = queue_bas.dequeueRequests(speed);
+        deque_ret = queue_ret.dequeueRequests(speed);
+
+        qlens_bas = queue_bas.getLengthRequests();
+        qlens_ret = queue_ret.getLengthRequests();
+
+        // response_time =  qlens_bas[0] / speed;
+
+        if (deque_bas.tq.length > 0) {
+            response_time_min_bas = t - deque_bas.tq.slice(-1)[0].t;
+            response_time_max_bas = t - deque_bas.tq.slice( 0)[0].t;
+            response_time_avg_bas = 0;
+            for (ii=0; ii<deque_bas.tq.length; ii++) { 
+                response_time_avg_bas += t - deque_bas.tq[ii].t;
+            }
+            response_time_avg_bas /= deque_bas.tq.length;
         } else {
-            response_time_min = 0;
-            response_time_max = 0;
+            response_time_min_bas = 0;
+            response_time_avg_bas = 0;
+            response_time_max_bas = 0;
         }
-        // console.log(response_time_min + ", " + response_time_max);
-
-        // reload with retries
-        // addRetries(queue,t,retry_timeout);
-        addRetries(queue,t,retry_timeout,1);
-
-        pt = {
-            "t": t,
-            "y": load+1
+        if (deque_ret.tq.length > 0) {
+            response_time_min_ret = t - deque_ret.tq.slice(-1)[0].t;
+            response_time_avg_ret = t - deque_ret.tq.slice( 0)[0].t;
+            response_time_avg_ret = 0;
+            for (ii=0; ii<deque_ret.tq.length; ii++) { 
+                response_time_avg_ret += t - deque_ret.tq[ii].t
+            }
+            response_time_avg_ret /= deque_ret.tq.length;
+        } else {
+            response_time_min_ret = 0;
+            response_time_avg_ret = 0;
+            response_time_max_ret = 0;
         }
-        data_load.push(pt)
 
-        pt = {
-            "t": t,
-            "y": queue_lengths[0]+1
-        }
-        data_lque.push(pt)
+        // Add retries
+        addRetries(queue_ret,t,retry_timeout,1);
 
-        pt = {
-            "t": t,
-            "y": (queue_lengths[1] | 0)+1
-        }
-        data_lqu1.push(pt)
-
-        pt = {
-            "t": t,
-            "y": (queue_lengths[2] | 0)+1
-        }
-        data_lqu2.push(pt)
-
-        pt = {
-            "t": t,
-            "y": response_time+1
-        }
-        data_tres.push(pt)
-
-        pt = {
-            "t": t,
-            "y": response_time_max+1
-        }
-        data_trmx.push(pt)
-
-        pt = {
-            "t": t,
-            "y": response_time_min+1
-        }
-        data_trmn.push(pt)
-
-        pt = {
-            "t": t,
-            "y": retry_timeout
-        }
-        data_tret.push(pt)
-
-        pt = {
-            "t": t,
-            "y": speed
-        }
-        data_smax.push(pt)
+        // all values have +1 added to allow plotting in log graph
+        ii=0;
+        pt = {"t": t, "y": load                       + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": qlens_bas[0]               + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": qlens_ret[0]               + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": (qlens_ret[1] | 0)         + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": (qlens_ret[2] | 0)         + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": response_time_avg_bas      + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": response_time_avg_ret      + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": response_time_min_ret      + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": response_time_max_ret      + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": retry_timeout              + 1 }; data[ii++].push(pt);
+        pt = {"t": t, "y": speed                      + 1 }; data[ii++].push(pt);
 
     };
 };
